@@ -5,9 +5,12 @@
 # Written by Xizhou Zhu
 # --------------------------------------------------------
 
-import mxnet as mx
-import numpy as np
 from distutils.util import strtobool
+
+import numpy as np
+
+import mxnet as mx
+
 
 class RPNInvNormalizeOperator(mx.operator.CustomOp):
     def __init__(self, num_anchors, bbox_mean, bbox_std):

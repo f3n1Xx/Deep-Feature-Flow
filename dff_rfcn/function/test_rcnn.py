@@ -7,18 +7,20 @@
 # --------------------------------------------------------
 
 import argparse
-import pprint
 import logging
-import time
 import os
-import numpy as np
-import mxnet as mx
+import pprint
+import time
 
-from symbols import *
-from dataset import *
+import numpy as np
+
+import mxnet as mx
 from core.loader import TestLoader
 from core.tester import Predictor, pred_eval, pred_eval_multiprocess
+from dataset import *
+from symbols import *
 from utils.load_model import load_param
+
 
 def get_predictor(sym, sym_instance, cfg, arg_params, aux_params, test_data, ctx):
     # infer shape
@@ -29,18 +31,21 @@ def get_predictor(sym, sym_instance, cfg, arg_params, aux_params, test_data, ctx
     # decide maximum shape
     data_names = [k[0] for k in test_data.provide_data_single]
     label_names = None
-    max_data_shape = [[('data', (1, 3, max([v[0] for v in cfg.SCALES]), max([v[1] for v in cfg.SCALES]))),
-                       ('data_key', (1, 3, max([v[0] for v in cfg.SCALES]), max([v[1] for v in cfg.SCALES]))),]]
+    max_data_shape = [[
+        ('data', (1, 3, max([v[0] for v in cfg.SCALES]), max([v[1] for v in cfg.SCALES]))),
+        ('data_key', (1, 3, max([v[0] for v in cfg.SCALES]), max([v[1] for v in cfg.SCALES]))),
+    ]]
 
     # create predictor
-    predictor = Predictor(sym, data_names, label_names,
-                          context=ctx, max_data_shapes=max_data_shape,
-                          provide_data=test_data.provide_data, provide_label=test_data.provide_label,
-                          arg_params=arg_params, aux_params=aux_params)
+    predictor = Predictor(
+        sym, data_names, label_names, context=ctx, max_data_shapes=max_data_shape,
+        provide_data=test_data.provide_data, provide_label=test_data.provide_label,
+        arg_params=arg_params, aux_params=aux_params
+    )
     return predictor
 
-def test_rcnn(cfg, dataset, image_set, root_path, dataset_path,
-              ctx, prefix, epoch,
+
+def test_rcnn(cfg, dataset, image_set, root_path, dataset_path, ctx, prefix, epoch,
               vis, ignore_cache, shuffle, has_rpn, proposal, thresh, logger=None, output_path=None):
     if not logger:
         assert False, 'require a logger'
@@ -60,7 +65,7 @@ def test_rcnn(cfg, dataset, image_set, root_path, dataset_path,
     # get test data iter
     # split roidbs
     gpu_num = len(ctx)
-    roidbs = [[] for x in range(gpu_num)]
+    roidbs = [[] for x in xrange(gpu_num)]
     roidbs_seg_lens = np.zeros(gpu_num, dtype=np.int)
     for x in roidb:
         gpu_id = np.argmin(roidbs_seg_lens)
@@ -74,8 +79,8 @@ def test_rcnn(cfg, dataset, image_set, root_path, dataset_path,
     arg_params, aux_params = load_param(prefix, epoch, process=True)
 
     # create predictor
-    key_predictors = [get_predictor(key_sym, key_sym_instance, cfg, arg_params, aux_params, test_datas[i], [ctx[i]]) for i in range(gpu_num)]
-    cur_predictors = [get_predictor(cur_sym, cur_sym_instance, cfg, arg_params, aux_params, test_datas[i], [ctx[i]]) for i in range(gpu_num)]
+    key_predictors = [get_predictor(key_sym, key_sym_instance, cfg, arg_params, aux_params, test_datas[i], [ctx[i]]) for i in xrange(gpu_num)]
+    cur_predictors = [get_predictor(cur_sym, cur_sym_instance, cfg, arg_params, aux_params, test_datas[i], [ctx[i]]) for i in xrange(gpu_num)]
 
     # start detection
     #pred_eval(0, key_predictors[0], cur_predictors[0], test_datas[0], imdb, cfg, vis=vis, ignore_cache=ignore_cache, thresh=thresh, logger=logger)

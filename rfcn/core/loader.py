@@ -54,7 +54,7 @@ class TestLoader(mx.io.DataIter):
 
     @property
     def provide_label(self):
-        return [None for _ in range(len(self.data))]
+        return [None for _ in xrange(len(self.data))]
 
     @property
     def provide_data_single(self):
@@ -94,7 +94,7 @@ class TestLoader(mx.io.DataIter):
     def get_batch(self):
         cur_from = self.cur
         cur_to = min(cur_from + self.batch_size, self.size)
-        roidb = [self.roidb[self.index[i]] for i in range(cur_from, cur_to)]
+        roidb = [self.roidb[self.index[i]] for i in xrange(cur_from, cur_to)]
         if self.has_rpn:
             data, label, im_info = get_rpn_testbatch(roidb, self.cfg)
         else:
@@ -242,7 +242,7 @@ class AnchorLoader(mx.io.DataIter):
         # slice roidb
         cur_from = self.cur
         cur_to = min(cur_from + self.batch_size, self.size)
-        roidb = [self.roidb[self.index[i]] for i in range(cur_from, cur_to)]
+        roidb = [self.roidb[self.index[i]] for i in xrange(cur_from, cur_to)]
 
         # decide multi device slice
         work_load_list = self.work_load_list
@@ -257,7 +257,7 @@ class AnchorLoader(mx.io.DataIter):
         data_list = []
         label_list = []
         for islice in slices:
-            iroidb = [roidb[i] for i in range(islice.start, islice.stop)]
+            iroidb = [roidb[i] for i in xrange(islice.start, islice.stop)]
             data, label = get_rpn_batch(iroidb, self.cfg)
             data_list.append(data)
             label_list.append(label)
@@ -300,7 +300,7 @@ class AnchorLoader(mx.io.DataIter):
     def get_batch_individual(self):
         cur_from = self.cur
         cur_to = min(cur_from + self.batch_size, self.size)
-        roidb = [self.roidb[self.index[i]] for i in range(cur_from, cur_to)]
+        roidb = [self.roidb[self.index[i]] for i in xrange(cur_from, cur_to)]
         # decide multi device slice
         work_load_list = self.work_load_list
         ctx = self.ctx
@@ -311,7 +311,7 @@ class AnchorLoader(mx.io.DataIter):
         slices = _split_input_slice(self.batch_size, work_load_list)
         rst = []
         for idx, islice in enumerate(slices):
-            iroidb = [roidb[i] for i in range(islice.start, islice.stop)]
+            iroidb = [roidb[i] for i in xrange(islice.start, islice.stop)]
             rst.append(self.parfetch(iroidb))
         all_data = [_['data'] for _ in rst]
         all_label = [_['label'] for _ in rst]

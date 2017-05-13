@@ -14,8 +14,6 @@ import numpy as np
 from distutils.util import strtobool
 
 
-
-
 class BoxAnnotatorOHEMOperator(mx.operator.CustomOp):
     def __init__(self, num_classes, num_reg_classes, roi_per_img):
         super(BoxAnnotatorOHEMOperator, self).__init__()
@@ -54,7 +52,7 @@ class BoxAnnotatorOHEMOperator(mx.operator.CustomOp):
 
 
     def backward(self, req, out_grad, in_data, out_data, in_grad, aux):
-        for i in range(len(in_grad)):
+        for i in xrange(len(in_grad)):
             self.assign(in_grad[i], req[i], 0)
 
 

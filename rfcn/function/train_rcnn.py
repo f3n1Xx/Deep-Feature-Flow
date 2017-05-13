@@ -8,19 +8,19 @@
 
 import argparse
 import logging
-import pprint
 import os
-import mxnet as mx
+import pprint
 
-from symbols import *
+import mxnet as mx
+from bbox.bbox_regression import add_bbox_regression_targets
 from core import callback, metric
 from core.loader import ROIIter
 from core.module import MutableModule
-from bbox.bbox_regression import add_bbox_regression_targets
-from utils.load_data import load_proposal_roidb, merge_roidb, filter_roidb
+from symbols import *
+from utils.load_data import filter_roidb, load_proposal_roidb, merge_roidb
 from utils.load_model import load_param
-from utils.PrefetchingIter import PrefetchingIter
 from utils.lr_scheduler import WarmupMultiFactorScheduler
+from utils.PrefetchingIter import PrefetchingIter
 
 
 def train_rcnn(cfg, dataset, image_set, root_path, dataset_path,
@@ -86,7 +86,7 @@ def train_rcnn(cfg, dataset, image_set, root_path, dataset_path,
         fixed_param_prefix = cfg.network.FIXED_PARAMS
     mod = MutableModule(sym, data_names=data_names, label_names=label_names,
                         logger=logger, context=ctx,
-                        max_data_shapes=[max_data_shape for _ in range(batch_size)], fixed_param_prefix=fixed_param_prefix)
+                        max_data_shapes=[max_data_shape for _ in xrange(batch_size)], fixed_param_prefix=fixed_param_prefix)
 
     if cfg.TRAIN.RESUME:
         mod._preload_opt_states = '%s-%04d.states'%(prefix, begin_epoch)
@@ -130,4 +130,3 @@ def train_rcnn(cfg, dataset, image_set, root_path, dataset_path,
             batch_end_callback=batch_end_callback, kvstore=kvstore,
             optimizer='sgd', optimizer_params=optimizer_params,
             arg_params=arg_params, aux_params=aux_params, begin_epoch=begin_epoch, num_epoch=end_epoch)
-

@@ -6,8 +6,9 @@
 # Modified by Xizhou Zhu, Yuwen Xiong, Bin Xiao
 # --------------------------------------------------------
 
-import yaml
 import numpy as np
+import yaml
+
 from easydict import EasyDict as edict
 
 config = edict()

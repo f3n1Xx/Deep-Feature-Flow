@@ -14,13 +14,14 @@ criterion.
 """
 
 import cPickle
-import cv2
 import os
+
 import numpy as np
 
-from imdb import IMDB
+import cv2
+from ds_utils import filter_small_boxes, unique_boxes
 from imagenet_vid_eval import vid_eval
-from ds_utils import unique_boxes, filter_small_boxes
+from imdb import IMDB
 
 
 class ImageNetVID(IMDB):
@@ -105,7 +106,7 @@ class ImageNetVID(IMDB):
             print '{} gt roidb loaded from {}'.format(self.name, cache_file)
             return roidb
 
-        gt_roidb = [self.load_vid_annotation(index) for index in range(0, len(self.image_set_index))]
+        gt_roidb = [self.load_vid_annotation(index) for index in xrange(0, len(self.image_set_index))]
         with open(cache_file, 'wb') as fid:
             cPickle.dump(gt_roidb, fid, cPickle.HIGHEST_PROTOCOL)
         print 'wrote gt roidb to {}'.format(cache_file)
@@ -237,7 +238,7 @@ class ImageNetVID(IMDB):
                     if len(dets) == 0:
                         continue
                     # the imagenet expects 0-based indices
-                    for k in range(dets.shape[0]):
+                    for k in xrange(dets.shape[0]):
                         f.write('{:d} {:d} {:.4f} {:.2f} {:.2f} {:.2f} {:.2f}\n'.
                                 format(self.frame_id[im_ind], cls_ind, dets[k, -1],
                                        dets[k, 0], dets[k, 1], dets[k, 2], dets[k, 3]))
@@ -254,7 +255,7 @@ class ImageNetVID(IMDB):
             for detection in detections:
                 all_boxes = detection[0]
                 frame_ids = detection[1]
-                for im_ind in range(len(frame_ids)):
+                for im_ind in xrange(len(frame_ids)):
                     for cls_ind, cls in enumerate(self.classes):
                         if cls == '__background__':
                             continue
@@ -262,11 +263,11 @@ class ImageNetVID(IMDB):
                         if len(dets) == 0:
                             continue
                         # the imagenet expects 0-based indices
-                        for k in range(dets.shape[0]):
+                        for k in xrange(dets.shape[0]):
                             f.write('{:d} {:d} {:.4f} {:.2f} {:.2f} {:.2f} {:.2f}\n'.
                                     format(frame_ids[im_ind], cls_ind, dets[k, -1],
                                            dets[k, 0], dets[k, 1], dets[k, 2], dets[k, 3]))
-    
+
     def do_python_eval(self):
         """
         python evaluation wrapper
@@ -299,8 +300,8 @@ class ImageNetVID(IMDB):
         annocache = os.path.join(self.cache_path, self.name + '_annotations.pkl')
 
         with open(imageset_file, 'w') as f:
-            for i in range(len(self.pattern)):
-                for j in range(self.frame_seg_len[i]):
+            for i in xrange(len(self.pattern)):
+                for j in xrange(self.frame_seg_len[i]):
                     f.write((self.pattern[i] % (self.frame_seg_id[i] + j)) + ' ' + str(self.frame_id[i] + j) + '\n')
 
         filename = self.get_result_file_template().format('all')

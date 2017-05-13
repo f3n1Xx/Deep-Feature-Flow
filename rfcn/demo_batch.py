@@ -109,9 +109,11 @@ def main():
 
     # warm up
     for j in xrange(1):
-        data_batch = mx.io.DataBatch(data=[data[j]], label=[], pad=0, index=0,
-                                     provide_data=[[(k, v.shape) for k, v in zip(data_names, data[j])]],
-                                     provide_label=[None])
+        data_batch = mx.io.DataBatch(
+            data=[data[j]], label=[], pad=0, index=0,
+            provide_data=[[(k, v.shape) for k, v in zip(data_names, data[j])]],
+            provide_label=[None]
+        )
         scales = [data_batch.data[i][1].asnumpy()[:, 2] for i in xrange(len(data_batch.data))]
         scores_all, boxes_all, data_dict = im_batch_detect(predictor, data_batch, data_names, scales, config)
 
@@ -120,9 +122,11 @@ def main():
     time = 0
     count = 0
     for idx, im_names in enumerate(image_names_list):
-        data_batch = mx.io.DataBatch(data=[data[idx]], label=[], pad=0, index=idx,
-                                     provide_data=[[(k, v.shape) for k, v in zip(data_names, data[idx])]],
-                                     provide_label=[None])
+        data_batch = mx.io.DataBatch(
+            data=[data[idx]], label=[], pad=0, index=idx,
+            provide_data=[[(k, v.shape) for k, v in zip(data_names, data[idx])]],
+            provide_label=[None]
+        )
         scales = [data_batch.data[i][1].asnumpy()[:, 2] for i in xrange(len(data_batch.data))]
 
         tic()
@@ -135,7 +139,7 @@ def main():
             boxes = boxes_all[batch_idx].astype('f')
             scores = scores_all[batch_idx].astype('f')
             dets_nms = []
-            for j in range(1, scores.shape[1]):
+            for j in xrange(1, scores.shape[1]):
                 cls_scores = scores[:, j, np.newaxis]
                 cls_boxes = boxes[:, 4:8] if config.CLASS_AGNOSTIC else boxes[:, j * 4:(j + 1) * 4]
                 cls_dets = np.hstack((cls_boxes, cls_scores))
@@ -149,7 +153,7 @@ def main():
             # show_boxes(im, dets_nms, classes, 1)
             out_im = draw_boxes(im, dets_nms, classes, 1)
             _, filename = os.path.split(im_names[batch_idx])
-            cv2.imwrite(output_dir + filename,out_im)
+            cv2.imwrite(output_dir + filename, out_im)
 
     print 'done'
 

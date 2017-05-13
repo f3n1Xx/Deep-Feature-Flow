@@ -9,12 +9,15 @@ basic format [image_index]
 'boxes', 'gt_classes', 'gt_overlaps', 'max_classes', 'max_overlaps', 'bbox_targets']
 """
 
-import os
 import cPickle
+import os
+from multiprocessing import Pool, cpu_count
+
 import numpy as np
 from PIL import Image
+
 from bbox.bbox_transform import bbox_overlaps
-from multiprocessing import Pool, cpu_count
+
 
 def get_flipped_entry_outclass_wrapper(IMDB_instance, seg_rec):
     return IMDB_instance.get_flipped_entry(seg_rec)
@@ -123,7 +126,7 @@ class IMDB(object):
         """
         assert len(box_list) == self.num_images, 'number of boxes matrix must match number of images'
         roidb = []
-        for i in range(self.num_images):
+        for i in xrange(self.num_images):
             roi_rec = dict()
             roi_rec['image'] = gt_roidb[i]['image']
             roi_rec['height'] = gt_roidb[i]['height']
@@ -181,7 +184,7 @@ class IMDB(object):
         assert self.num_images == len(segdb)
         pool = Pool(processes=1)
         pool_result = []
-        for i in range(self.num_images):
+        for i in xrange(self.num_images):
             seg_rec = segdb[i]
             pool_result.append(pool.apply_async(get_flipped_entry_outclass_wrapper, args=(self, seg_rec, )))
             #self.get_flipped_entry(seg_rec, segdb_flip, i)
@@ -201,7 +204,7 @@ class IMDB(object):
         """
         print 'append flipped images to roidb'
         assert self.num_images == len(roidb)
-        for i in range(self.num_images):
+        for i in xrange(self.num_images):
             roi_rec = roidb[i]
             boxes = roi_rec['boxes'].copy()
             oldx1 = boxes[:, 0].copy()
@@ -259,7 +262,7 @@ class IMDB(object):
         area_counts = []
         for area_name, area_range in zip(area_names[1:], area_ranges[1:]):
             area_count = 0
-            for i in range(self.num_images):
+            for i in xrange(self.num_images):
                 if candidate_boxes is None:
                     # default is use the non-gt boxes from roidb
                     non_gt_inds = np.where(roidb[i]['gt_classes'] == 0)[0]
@@ -281,7 +284,7 @@ class IMDB(object):
         for area_name, area_range in zip(area_names, area_ranges):
             gt_overlaps = np.zeros(0)
             num_pos = 0
-            for i in range(self.num_images):
+            for i in xrange(self.num_images):
                 # check for max_overlaps == 1 avoids including crowd annotations
                 max_gt_overlaps = roidb[i]['gt_overlaps'].max(axis=1)
                 gt_inds = np.where((roidb[i]['gt_classes'] > 0) & (max_gt_overlaps == 1))[0]
@@ -305,7 +308,7 @@ class IMDB(object):
                 _gt_overlaps = np.zeros((gt_boxes.shape[0]))
                 # choose whatever is smaller to iterate
                 rounds = min(boxes.shape[0], gt_boxes.shape[0])
-                for j in range(rounds):
+                for j in xrange(rounds):
                     # find which proposal maximally covers each gt box
                     argmax_overlaps = overlaps.argmax(axis=0)
                     # get the IoU amount of coverage for each gt box
@@ -356,7 +359,7 @@ class IMDB(object):
         :return: merged imdb
         """
         assert len(a) == len(b)
-        for i in range(len(a)):
+        for i in xrange(len(a)):
             a[i]['boxes'] = np.vstack((a[i]['boxes'], b[i]['boxes']))
             a[i]['gt_classes'] = np.hstack((a[i]['gt_classes'], b[i]['gt_classes']))
             a[i]['gt_overlaps'] = np.vstack((a[i]['gt_overlaps'], b[i]['gt_overlaps']))

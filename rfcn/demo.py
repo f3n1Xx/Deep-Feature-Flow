@@ -50,14 +50,16 @@ def main():
 
     # set up class names
     num_classes = 31
-    classes = ['airplane', 'antelope', 'bear', 'bicycle',
-               'bird', 'bus', 'car', 'cattle',
-               'dog', 'domestic_cat', 'elephant', 'fox',
-               'giant_panda', 'hamster', 'horse', 'lion',
-               'lizard', 'monkey', 'motorcycle', 'rabbit',
-               'red_panda', 'sheep', 'snake', 'squirrel',
-               'tiger', 'train', 'turtle', 'watercraft',
-               'whale', 'zebra']
+    classes = [
+        'airplane', 'antelope', 'bear', 'bicycle',
+        'bird', 'bus', 'car', 'cattle',
+        'dog', 'domestic_cat', 'elephant', 'fox',
+        'giant_panda', 'hamster', 'horse', 'lion',
+        'lizard', 'monkey', 'motorcycle', 'rabbit',
+        'red_panda', 'sheep', 'snake', 'squirrel',
+        'tiger', 'train', 'turtle', 'watercraft',
+        'whale', 'zebra'
+    ]
 
     # load demo data
     image_names = glob.glob(cur_path + '/../demo/ILSVRC2015_val_00007010/*.JPEG')
@@ -87,17 +89,21 @@ def main():
     provide_data = [[(k, v.shape) for k, v in zip(data_names, data[i])] for i in xrange(len(data))]
     provide_label = [None for i in xrange(len(data))]
     arg_params, aux_params = load_param(cur_path + model, 0, process=True)
-    predictor = Predictor(sym, data_names, label_names,
-                          context=[mx.gpu(0)], max_data_shapes=max_data_shape,
-                          provide_data=provide_data, provide_label=provide_label,
-                          arg_params=arg_params, aux_params=aux_params)
+    predictor = Predictor(
+        sym, data_names, label_names,
+        context=[mx.gpu(0)], max_data_shapes=max_data_shape,
+        provide_data=provide_data, provide_label=provide_label,
+        arg_params=arg_params, aux_params=aux_params
+    )
     nms = gpu_nms_wrapper(config.TEST.NMS, 0)
 
     # warm up
     for j in xrange(2):
-        data_batch = mx.io.DataBatch(data=[data[0]], label=[], pad=0, index=0,
-                                     provide_data=[[(k, v.shape) for k, v in zip(data_names, data[0])]],
-                                     provide_label=[None])
+        data_batch = mx.io.DataBatch(
+            data=[data[0]], label=[], pad=0, index=0,
+            provide_data=[[(k, v.shape) for k, v in zip(data_names, data[0])]],
+            provide_label=[None]
+        )
         scales = [data_batch.data[i][1].asnumpy()[0, 2] for i in xrange(len(data_batch.data))]
         scores, boxes, data_dict = im_detect(predictor, data_batch, data_names, scales, config)
 
@@ -105,9 +111,11 @@ def main():
     time = 0
     count = 0
     for idx, im_name in enumerate(image_names):
-        data_batch = mx.io.DataBatch(data=[data[idx]], label=[], pad=0, index=idx,
-                                     provide_data=[[(k, v.shape) for k, v in zip(data_names, data[idx])]],
-                                     provide_label=[None])
+        data_batch = mx.io.DataBatch(
+            data=[data[idx]], label=[], pad=0, index=idx,
+            provide_data=[[(k, v.shape) for k, v in zip(data_names, data[idx])]],
+            provide_label=[None]
+        )
         scales = [data_batch.data[i][1].asnumpy()[0, 2] for i in xrange(len(data_batch.data))]
 
         tic()
@@ -119,7 +127,7 @@ def main():
         boxes = boxes[0].astype('f')
         scores = scores[0].astype('f')
         dets_nms = []
-        for j in range(1, scores.shape[1]):
+        for j in xrange(1, scores.shape[1]):
             cls_scores = scores[:, j, np.newaxis]
             cls_boxes = boxes[:, 4:8] if config.CLASS_AGNOSTIC else boxes[:, j * 4:(j + 1) * 4]
             cls_dets = np.hstack((cls_boxes, cls_scores))

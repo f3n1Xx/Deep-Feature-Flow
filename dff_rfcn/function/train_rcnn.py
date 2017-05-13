@@ -47,7 +47,8 @@ def train_rcnn(cfg, dataset, image_set, root_path, dataset_path,
 
     # load dataset and prepare imdb for training
     image_sets = [iset for iset in image_set.split('+')]
-    roidbs = [load_proposal_roidb(dataset, image_set, root_path, dataset_path,
+    roidbs = [
+        load_proposal_roidb(dataset, image_set, root_path, dataset_path,
                                   proposal=proposal, append_gt=True, flip=flip, result_path=output_path)
               for image_set in image_sets]
     roidb = merge_roidb(roidbs)
@@ -55,8 +56,10 @@ def train_rcnn(cfg, dataset, image_set, root_path, dataset_path,
     means, stds = add_bbox_regression_targets(roidb, cfg)
 
     # load training data
-    train_data = ROIIter(roidb, cfg, batch_size=input_batch_size, shuffle=shuffle,
-                         ctx=ctx, aspect_grouping=cfg.TRAIN.ASPECT_GROUPING)
+    train_data = ROIIter(
+        roidb, cfg, batch_size=input_batch_size, shuffle=shuffle,
+        ctx=ctx, aspect_grouping=cfg.TRAIN.ASPECT_GROUPING
+    )
 
     # infer max shape
     max_data_shape = [('data', (cfg.TRAIN.BATCH_IMAGES, 3, max([v[0] for v in cfg.SCALES]), max([v[1] for v in cfg.SCALES])))]
@@ -84,12 +87,14 @@ def train_rcnn(cfg, dataset, image_set, root_path, dataset_path,
         fixed_param_prefix = cfg.network.FIXED_PARAMS_SHARED
     else:
         fixed_param_prefix = cfg.network.FIXED_PARAMS
-    mod = MutableModule(sym, data_names=data_names, label_names=label_names,
-                        logger=logger, context=ctx,
-                        max_data_shapes=[max_data_shape for _ in range(batch_size)], fixed_param_prefix=fixed_param_prefix)
+    mod = MutableModule(
+        sym, data_names=data_names, label_names=label_names, logger=logger, context=ctx,
+        max_data_shapes=[max_data_shape for _ in xrange(batch_size)],
+        fixed_param_prefix=fixed_param_prefix
+    )
 
     if cfg.TRAIN.RESUME:
-        mod._preload_opt_states = '%s-%04d.states'%(prefix, begin_epoch)
+        mod._preload_opt_states = '%s-%04d.states' % (prefix, begin_epoch)
 
 
     # decide training params
@@ -102,8 +107,10 @@ def train_rcnn(cfg, dataset, image_set, root_path, dataset_path,
         eval_metrics.add(child_metric)
     # callback
     batch_end_callback = callback.Speedometer(train_data.batch_size, frequent=frequent)
-    epoch_end_callback = [mx.callback.module_checkpoint(mod, prefix, period=1, save_optimizer_states=True),
-                          callback.do_checkpoint(prefix, means, stds)]
+    epoch_end_callback = [
+        mx.callback.module_checkpoint(mod, prefix, period=1, save_optimizer_states=True),
+        callback.do_checkpoint(prefix, means, stds)
+    ]
     # decide learning rate
     base_lr = lr
     lr_factor = cfg.TRAIN.lr_factor
@@ -112,7 +119,10 @@ def train_rcnn(cfg, dataset, image_set, root_path, dataset_path,
     lr = base_lr * (lr_factor ** (len(lr_epoch) - len(lr_epoch_diff)))
     lr_iters = [int(epoch * len(roidb) / batch_size) for epoch in lr_epoch_diff]
     print('lr', lr, 'lr_epoch_diff', lr_epoch_diff, 'lr_iters', lr_iters)
-    lr_scheduler = WarmupMultiFactorScheduler(lr_iters, lr_factor, cfg.TRAIN.warmup, cfg.TRAIN.warmup_lr, cfg.TRAIN.warmup_step)
+
+    lr_scheduler = WarmupMultiFactorScheduler(
+        lr_iters, lr_factor, cfg.TRAIN.warmup, cfg.TRAIN.warmup_lr, cfg.TRAIN.warmup_step
+    )
     # optimizer
     optimizer_params = {'momentum': cfg.TRAIN.momentum,
                         'wd': cfg.TRAIN.wd,
@@ -122,12 +132,13 @@ def train_rcnn(cfg, dataset, image_set, root_path, dataset_path,
                         'clip_gradient': None}
 
     # train
-
     if not isinstance(train_data, PrefetchingIter):
         train_data = PrefetchingIter(train_data)
 
-    mod.fit(train_data, eval_metric=eval_metrics, epoch_end_callback=epoch_end_callback,
-            batch_end_callback=batch_end_callback, kvstore=kvstore,
-            optimizer='sgd', optimizer_params=optimizer_params,
-            arg_params=arg_params, aux_params=aux_params, begin_epoch=begin_epoch, num_epoch=end_epoch)
+    mod.fit(
+        train_data, eval_metric=eval_metrics, epoch_end_callback=epoch_end_callback,
+        batch_end_callback=batch_end_callback, kvstore=kvstore,
+        optimizer='sgd', optimizer_params=optimizer_params,
+        arg_params=arg_params, aux_params=aux_params, begin_epoch=begin_epoch, num_epoch=end_epoch
+    )
 

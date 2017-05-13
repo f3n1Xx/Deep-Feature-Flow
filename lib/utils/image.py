@@ -1,8 +1,10 @@
-import numpy as np
 import os
-import cv2
 import random
+
+import numpy as np
 from PIL import Image
+
+import cv2
 from bbox.bbox_transform import clip_boxes
 
 
@@ -20,7 +22,7 @@ def get_image(roidb, config):
     num_images = len(roidb)
     processed_ims = []
     processed_roidb = []
-    for i in range(num_images):
+    for i in xrange(num_images):
         roi_rec = roidb[i]
         assert os.path.exists(roi_rec['image']), '%s does not exist'.format(roi_rec['image'])
         im = cv2.imread(roi_rec['image'], cv2.IMREAD_COLOR|cv2.IMREAD_IGNORE_ORIENTATION)
@@ -54,7 +56,7 @@ def get_pair_image(roidb, config):
     processed_ref_ims = []
     processed_eq_flags = []
     processed_roidb = []
-    for i in range(num_images):
+    for i in xrange(num_images):
         roi_rec = roidb[i]
 
         eq_flag = 0 # 0 for unequal, 1 for equal
@@ -133,7 +135,7 @@ def transform(im, pixel_means):
     :return: [batch, channel, height, width]
     """
     im_tensor = np.zeros((1, 3, im.shape[0], im.shape[1]))
-    for i in range(3):
+    for i in xrange(3):
         im_tensor[0, i, :, :] = im[:, :, 2 - i] - pixel_means[2 - i]
     return im_tensor
 
@@ -180,7 +182,7 @@ def tensor_vstack(tensor_list, pad=0):
     dimensions = []
     first_dim = sum([tensor.shape[0] for tensor in tensor_list])
     dimensions.append(first_dim)
-    for dim in range(1, ndim):
+    for dim in xrange(1, ndim):
         dimensions.append(max([tensor.shape[dim] for tensor in tensor_list]))
     if pad == 0:
         all_tensor = np.zeros(tuple(dimensions), dtype=dtype)

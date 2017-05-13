@@ -3,14 +3,15 @@ Proposal Operator transform anchor coordinates into ROI coordinates with predict
 classification probability and bounding box prediction results, and image size and scale information.
 """
 
-import mxnet as mx
-import numpy as np
-import numpy.random as npr
 from distutils.util import strtobool
 
+import numpy as np
+import numpy.random as npr
+
+import mxnet as mx
 from bbox.bbox_transform import bbox_pred, clip_boxes
+from nms.nms import cpu_nms_wrapper, gpu_nms_wrapper, py_nms_wrapper
 from rpn.generate_anchor import generate_anchors
-from nms.nms import py_nms_wrapper, cpu_nms_wrapper, gpu_nms_wrapper
 
 DEBUG = False
 
@@ -22,7 +23,9 @@ class ProposalOperator(mx.operator.CustomOp):
         self._feat_stride = feat_stride
         self._scales = np.fromstring(scales[1:-1], dtype=float, sep=',')
         self._ratios = np.fromstring(ratios[1:-1], dtype=float, sep=',')
-        self._anchors = generate_anchors(base_size=self._feat_stride, scales=self._scales, ratios=self._ratios)
+        self._anchors = generate_anchors(
+            base_size=self._feat_stride, scales=self._scales, ratios=self._ratios
+        )
         self._num_anchors = self._anchors.shape[0]
         self._output_score = output_score
         self._rpn_pre_nms_top_n = rpn_pre_nms_top_n
@@ -40,7 +43,7 @@ class ProposalOperator(mx.operator.CustomOp):
 
         batch_size = in_data[0].shape[0]
         if batch_size > 1:
-            raise ValueError("Sorry, multiple images each device is not implemented")
+            raise ValueError("Sorry, multiple images each device is not implemented.")
 
         # for each (H, W) location i
         #   generate A anchor boxes centered on cell i

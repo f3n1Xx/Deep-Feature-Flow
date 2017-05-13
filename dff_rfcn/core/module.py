@@ -11,19 +11,30 @@ varying with training iterations. If shapes vary, executors will rebind,
 using shared arrays from the initial module binded with maximum shape.
 """
 
-import time
 import logging
+import time
 import warnings
 
 from mxnet import context as ctx
-from mxnet.initializer import Uniform, InitDesc
-from mxnet.module.base_module import BaseModule, _check_input_names, _parse_data_desc, _as_list
-from mxnet.model import _create_kvstore, _initialize_kvstore, _update_params, _update_params_on_kvstore, load_checkpoint, BatchEndParam
-from mxnet import metric
-
-from .DataParallelExecutorGroup import DataParallelExecutorGroup
 from mxnet import ndarray as nd
 from mxnet import optimizer as opt
+from mxnet import metric
+from mxnet.initializer import InitDesc, Uniform
+from mxnet.model import (
+    BatchEndParam,
+    _create_kvstore,
+    _initialize_kvstore,
+    _update_params, _update_params_on_kvstore,
+    load_checkpoint
+)
+from mxnet.module.base_module import (
+    BaseModule,
+    _as_list,
+    _check_input_names,
+    _parse_data_desc
+)
+
+from .DataParallelExecutorGroup import DataParallelExecutorGroup
 
 
 class Module(BaseModule):
@@ -476,7 +487,7 @@ class Module(BaseModule):
             if update_on_kvstore:
                 idx2name.update(enumerate(self._exec_group.param_names))
             else:
-                for k in range(len(self._context)):
+                for k in xrange(len(self._context)):
                     idx2name.update({i*len(self._context)+k: n
                                      for i, n in enumerate(self._exec_group.param_names)})
             optimizer_params = dict(optimizer_params)
@@ -959,7 +970,7 @@ class MutableModule(BaseModule):
         ################################################################################
         # training loop
         ################################################################################
-        for epoch in range(begin_epoch, num_epoch):
+        for epoch in xrange(begin_epoch, num_epoch):
             tic = time.time()
             eval_metric.reset()
             for nbatch, data_batch in enumerate(train_data):

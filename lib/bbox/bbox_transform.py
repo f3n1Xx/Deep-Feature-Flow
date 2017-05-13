@@ -1,4 +1,5 @@
 import numpy as np
+
 from bbox import bbox_overlaps_cython
 
 
@@ -16,9 +17,9 @@ def bbox_overlaps_py(boxes, query_boxes):
     n_ = boxes.shape[0]
     k_ = query_boxes.shape[0]
     overlaps = np.zeros((n_, k_), dtype=np.float)
-    for k in range(k_):
+    for k in xrange(k_):
         query_box_area = (query_boxes[k, 2] - query_boxes[k, 0] + 1) * (query_boxes[k, 3] - query_boxes[k, 1] + 1)
-        for n in range(n_):
+        for n in xrange(n_):
             iw = min(boxes[n, 2], query_boxes[k, 2]) - max(boxes[n, 0], query_boxes[k, 0]) + 1
             if iw > 0:
                 ih = min(boxes[n, 3], query_boxes[k, 3]) - max(boxes[n, 1], query_boxes[k, 1]) + 1

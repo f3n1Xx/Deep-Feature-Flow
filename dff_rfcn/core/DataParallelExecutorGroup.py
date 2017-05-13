@@ -5,24 +5,24 @@
 # Licensed under The Apache-2.0 License [see LICENSE for details]
 # Modified by Yuwen Xiong
 # --------------------------------------------------------
-
 import logging
+from itertools import izip
+
 import numpy as np
 
 from mxnet import context as ctx
 from mxnet import ndarray as nd
-from mxnet.io import DataDesc
 from mxnet.executor_manager import _split_input_slice
-
+from mxnet.io import DataDesc
 
 
 def _load_general(data, targets, major_axis):
-    """Load a list of arrays into a list of arrays specified by slices"""
+    """Load a list of arrays into a list of arrays specified by slices."""
     for d_src, d_targets in zip(data, targets):
         if isinstance(d_targets, nd.NDArray):
             d_src.copyto(d_targets)
         elif isinstance(d_src, (list, tuple)):
-            for src, dst in zip(d_src, d_targets):
+            for src, dst in izip(d_src, d_targets):
                 src.copyto(dst)
         else:
             raise NotImplementedError
@@ -30,12 +30,12 @@ def _load_general(data, targets, major_axis):
 
 
 def _load_data(batch, targets, major_axis):
-    """Load data into sliced arrays"""
+    """Load data into sliced arrays."""
     _load_general(batch.data, targets, major_axis)
 
 
 def _load_label(batch, targets, major_axis):
-    """Load label into sliced arrays"""
+    """Load label into sliced arrays."""
     _load_general(batch.label, targets, major_axis)
 
 
@@ -44,7 +44,7 @@ def _merge_multi_context(outputs, major_axis):
     like living on one context.
     """
     rets = []
-    for tensors, axis in zip(outputs, major_axis):
+    for tensors, axis in izip(outputs, major_axis):
         if axis >= 0:
             rets.append(nd.concatenate(tensors, axis=axis, always_copy=False))
         else:
@@ -117,13 +117,9 @@ class DataParallelExecutorGroup(object):
         self.logger = logger
         #In the future we should have a better way to profile memory per device (haibin)
         # self._total_exec_bytes = 0
-        self.fixed_param_names = fixed_param_names
-        if self.fixed_param_names is None:
-            self.fixed_param_names = []
+        self.fixed_param_names = fixed_param_names or []
 
-        self.state_names = state_names
-        if self.state_names is None:
-            self.state_names = []
+        self.state_names = state_names or []
 
         if not for_training:
             grad_req = 'null'
@@ -139,8 +135,8 @@ class DataParallelExecutorGroup(object):
             for k in self.arg_names:
                 if k in self.param_names:
                     self.grad_req[k] = 'null' if k in self.fixed_param_names else grad_req
-                elif k in data_names:
-                    self.grad_req[k] = grad_req if self.inputs_need_grad else 'null'
+                elif k in data_names and self.inputs_need_grad:
+                    self.grad_req[k] = grad_req
                 else:
                     self.grad_req[k] = 'null'
         elif isinstance(grad_req, (list, tuple)):
@@ -151,13 +147,13 @@ class DataParallelExecutorGroup(object):
             for k in self.arg_names:
                 if k in self.param_names:
                     self.grad_req[k] = 'null' if k in self.fixed_param_names else 'write'
-                elif k in data_names:
-                    self.grad_req[k] = 'write' if self.inputs_need_grad else 'null'
+                elif k in data_names and self.inputs_need_grad:
+                    self.grad_req[k] = 'write'
                 else:
                     self.grad_req[k] = 'null'
             self.grad_req.update(grad_req)
         else:
-            raise ValueError("grad_req must be one of str, list, tuple, or dict.")
+            raise ValueError('grad_req must be one of str, list, tuple, or dict.')
 
         if shared_group is not None:
             self.shared_data_arrays = shared_group.shared_data_arrays
@@ -181,8 +177,10 @@ class DataParallelExecutorGroup(object):
         self.label_shapes = None
         self.data_layouts = None
         self.label_layouts = None
-        self.output_layouts = [DataDesc.get_batch_axis(self.symbol[name].attr('__layout__'))
-                               for name in self.symbol.list_outputs()]
+        self.output_layouts = [
+            DataDesc.get_batch_axis(self.symbol[name].attr('__layout__'))
+            for name in self.symbol.list_outputs()
+        ]
         self.bind_exec(data_shapes, label_shapes, shared_group)
 
     def decide_slices(self, data_shapes):
@@ -196,15 +194,17 @@ class DataParallelExecutorGroup(object):
         assert len(data_shapes) > 0
         major_axis = [DataDesc.get_batch_axis(x.layout) for x in data_shapes]
 
-        for (name, shape), axis in zip(data_shapes, major_axis):
+        for (name, shape), axis in izip(data_shapes, major_axis):
             if axis == -1:
                 continue
 
             batch_size = shape[axis]
             if self.batch_size is not None:
-                assert batch_size == self.batch_size, ("all data must have the same batch size: "
-                                                       + ("batch_size = %d, but " % self.batch_size)
-                                                       + ("%s has shape %s" % (name, shape)))
+                assert batch_size == self.batch_size, ''.join([
+                    'all data must have the same batch size: '
+                    'batch_size = %d, but ' % self.batch_size,
+                    '%s has shape %s' % (name, shape)
+                ])
             else:
                 self.batch_size = batch_size
                 self.slices = _split_input_slice(self.batch_size, self.workload)
@@ -224,26 +224,34 @@ class DataParallelExecutorGroup(object):
         else:
             self.label_arrays = None
 
-        self.param_arrays = [[exec_.arg_arrays[i] for exec_ in self.execs]
-                             for i, name in enumerate(self.arg_names)
-                             if name in self.param_names]
+        self.param_arrays = [
+            [exec_.arg_arrays[i] for exec_ in self.execs]
+            for i, name in enumerate(self.arg_names)
+            if name in self.param_names
+        ]
         if self.for_training:
-            self.grad_arrays = [[exec_.grad_arrays[i] for exec_ in self.execs]
-                                for i, name in enumerate(self.arg_names)
-                                if name in self.param_names]
+            self.grad_arrays = [
+                [exec_.grad_arrays[i] for exec_ in self.execs]
+                for i, name in enumerate(self.arg_names)
+                if name in self.param_names
+            ]
         else:
             self.grad_arrays = None
 
         data_names = [x[0] for x in self.data_shapes]
         if self.inputs_need_grad:
-            self.input_grad_arrays = [[exec_.grad_arrays[i] for exec_ in self.execs]
-                                      for i, name in enumerate(self.arg_names)
-                                      if name in data_names]
+            self.input_grad_arrays = [
+                [exec_.grad_arrays[i] for exec_ in self.execs]
+                for i, name in enumerate(self.arg_names)
+                if name in data_names
+            ]
         else:
             self.input_grad_arrays = None
 
-        self.aux_arrays = [[exec_.aux_arrays[i] for exec_ in self.execs]
-                           for i in range(len(self.aux_names))]
+        self.aux_arrays = [
+            [exec_.aux_arrays[i] for exec_ in self.execs]
+            for i in xrange(len(self.aux_names))
+        ]
 
     def bind_exec(self, data_shapes, label_shapes, shared_group=None, reshape=False):
         """Bind executors on their respective devices.
@@ -257,7 +265,7 @@ class DataParallelExecutorGroup(object):
         """
         assert reshape or not self.execs
 
-        for i in range(len(self.contexts)):
+        for i in xrange(len(self.contexts)):
             data_shapes_i = data_shapes[i]
             if label_shapes is not None:
                 label_shapes_i = label_shapes[i]
@@ -266,10 +274,12 @@ class DataParallelExecutorGroup(object):
 
             if reshape:
                 self.execs[i] = self._default_execs[i].reshape(
-                    allow_up_sizing=True, **dict(data_shapes_i + label_shapes_i))
+                    allow_up_sizing=True, **dict(data_shapes_i + label_shapes_i)
+                )
             else:
-                self.execs.append(self._bind_ith_exec(i, data_shapes_i, label_shapes_i,
-                                                      shared_group))
+                self.execs.append(
+                    self._bind_ith_exec(i, data_shapes_i, label_shapes_i, shared_group)
+                )
 
         self.data_shapes = data_shapes
         self.label_shapes = label_shapes
@@ -285,7 +295,7 @@ class DataParallelExecutorGroup(object):
         """
         if self._default_execs is None:
             self._default_execs = [i for i in self.execs]
-        for i in range(len(self.contexts)):
+        for i in xrange(len(self.contexts)):
             self.execs[i] = self._default_execs[i].reshape(
                 allow_up_sizing=True, **dict(data_shapes[i] + (label_shapes[i] if label_shapes is not None else []))
             )
@@ -321,10 +331,11 @@ class DataParallelExecutorGroup(object):
         -----
         - This function will inplace update the NDArrays in arg_params and aux_params.
         """
-        for name, block in zip(self.param_names, self.param_arrays):
+        for name, block in izip(self.param_names, self.param_arrays):
             weight = sum(w.copyto(ctx.cpu()) for w in block) / len(block)
             weight.astype(arg_params[name].dtype).copyto(arg_params[name])
-        for name, block in zip(self.aux_names, self.aux_arrays):
+
+        for name, block in izip(self.aux_names, self.aux_arrays):
             weight = sum(w.copyto(ctx.cpu()) for w in block) / len(block)
             weight.astype(aux_params[name].dtype).copyto(aux_params[name])
 
@@ -373,9 +384,9 @@ class DataParallelExecutorGroup(object):
         elements are `NDArray`.
         """
         outputs = [[exec_.outputs[i] for exec_ in self.execs]
-                   for i in range(len(self.execs[0].outputs))]
+                   for i in xrange(len(self.execs[0].outputs))]
         if merge_multi_context:
-            outputs = _merge_multi_context(outputs, self.output_layouts)
+            return _merge_multi_context(outputs, self.output_layouts)
         return outputs
 
     def get_states(self, merge_multi_context=True):
@@ -396,7 +407,7 @@ class DataParallelExecutorGroup(object):
         elements are `NDArray`.
         """
         assert not merge_multi_context, \
-            "merge_multi_context=True is not supported for get_states yet."
+            'merge_multi_context=True is not supported for get_states yet.'
         return self.state_arrays
 
     def set_states(self, states=None, value=None):
@@ -411,11 +422,11 @@ class DataParallelExecutorGroup(object):
             a single scalar value for all state arrays.
         """
         if states is not None:
-            assert value is None, "Only one of states & value can be specified."
+            assert value is None, 'Only one of states & value can be specified.'
             _load_general(states, self.state_arrays, (0,)*len(states))
         else:
-            assert value is not None, "At least one of states & value must be specified."
-            assert states is None, "Only one of states & value can be specified."
+            assert value is not None, 'At least one of states & value must be specified.'
+            assert states is None, 'Only one of states & value can be specified.'
             for d_dst in self.state_arrays:
                 for dst in d_dst:
                     dst[:] = value
@@ -458,7 +469,7 @@ class DataParallelExecutorGroup(object):
         if out_grads is None:
             out_grads = []
 
-        for i, exec_ in enumerate(self.execs):
+        for exec_ in self.execs:
             out_grads_slice = []
             exec_.backward(out_grads=out_grads_slice)
 
@@ -472,12 +483,11 @@ class DataParallelExecutorGroup(object):
         labels : list of NDArray
             Typically comes from `label` of a `DataBatch`.
         """
-        for texec, labels in zip(self.execs, labels):
+        for texec, labels in izip(self.execs, labels):
             eval_metric.update(labels, texec.outputs)
 
     def _bind_ith_exec(self, i, data_shapes, label_shapes, shared_group):
-        """Internal utility function to bind the i-th executor.
-        """
+        """Internal utility function to bind the i-th executor."""
         shared_exec = None if shared_group is None else shared_group.execs[i]
         context = self.contexts[i]
         shared_data_arrays = self.shared_data_arrays[i]
@@ -487,19 +497,19 @@ class DataParallelExecutorGroup(object):
             input_shapes.update(dict(label_shapes))
 
         arg_shapes, _, aux_shapes = self.symbol.infer_shape(**input_shapes)
-        assert arg_shapes is not None, "shape inference failed"
+        assert arg_shapes is not None, 'shape inference failed'
 
         input_types = {x.name: x.dtype for x in data_shapes}
         if label_shapes is not None:
             input_types.update({x.name: x.dtype for x in label_shapes})
         arg_types, _, aux_types = self.symbol.infer_type(**input_types)
-        assert arg_types is not None, "type inference failed"
+        assert arg_types is not None, 'type inference failed'
 
         arg_arrays = []
         grad_arrays = {} if self.for_training else None
 
         def _get_or_reshape(name, shared_data_arrays, arg_shape, arg_type, context, logger):
-            """Internal helper to get a memory block or re-use by re-shaping"""
+            """Internal helper to get a memory block or re-use by re-shaping."""
             if name in shared_data_arrays:
                 arg_arr = shared_data_arrays[name]
 
@@ -508,13 +518,14 @@ class DataParallelExecutorGroup(object):
                     assert arg_arr.dtype == arg_type
                     arg_arr = arg_arr.reshape(arg_shape)
                 else:
-                    logger.warning(('bucketing: data "%s" has a shape %s' % (name, arg_shape)) +
-                                   (', which is larger than already allocated ') +
-                                   ('shape %s' % (arg_arr.shape,)) +
-                                   ('. Need to re-allocate. Consider putting ') +
-                                   ('default_bucket_key to') +
-                                   (' be the bucket taking the largest input for better ') +
-                                   ('memory sharing.'))
+                    logger.warning(''.join([
+                        'bucketing: data "%s" has a shape %s', name, arg_shape,
+                        ', which is larger than already allocated ',
+                        'shape %s', arg_arr.shape,
+                        '. Need to re-allocate. Consider putting ',
+                        'default_bucket_key to',
+                        ' be the bucket taking the largest input for better ',
+                        'memory sharing.']))
                     arg_arr = nd.zeros(arg_shape, context, dtype=arg_type)
 
                     # replace existing shared array because the new one is bigger
@@ -526,7 +537,7 @@ class DataParallelExecutorGroup(object):
             return arg_arr
 
         # create or borrow arguments and gradients
-        for j in range(len(self.arg_names)):
+        for j in xrange(len(self.arg_names)):
             name = self.arg_names[j]
             if name in self.param_names: # model parameters
                 if shared_exec is None:
@@ -546,9 +557,10 @@ class DataParallelExecutorGroup(object):
 
                 # data might also need grad if inputs_need_grad is True
                 if self.grad_req[name] != 'null':
-                    grad_arrays[name] = _get_or_reshape('grad of ' + name, shared_data_arrays,
-                                                        arg_shapes[j], arg_types[j], context,
-                                                        self.logger)
+                    grad_arrays[name] = _get_or_reshape(
+                        'grad of ' + name, shared_data_arrays,
+                        arg_shapes[j], arg_types[j], context, self.logger
+                    )
 
             arg_arrays.append(arg_arr)
 
@@ -561,9 +573,10 @@ class DataParallelExecutorGroup(object):
                 assert aux_types[j] == arr.dtype
             aux_arrays = shared_exec.aux_arrays[:]
 
-        executor = self.symbol.bind(ctx=context, args=arg_arrays,
-                                    args_grad=grad_arrays, aux_states=aux_arrays,
-                                    grad_req=self.grad_req, shared_exec=shared_exec)
+        executor = self.symbol.bind(
+            ctx=context, args=arg_arrays, args_grad=grad_arrays, aux_states=aux_arrays,
+            grad_req=self.grad_req, shared_exec=shared_exec
+        )
         # Get the total bytes allocated for this executor
         return executor
 
@@ -578,7 +591,7 @@ class DataParallelExecutorGroup(object):
             Which executor we are dealing with.
         """
         sliced_shapes = []
-        for desc, axis in zip(shapes, major_axis):
+        for desc, axis in izip(shapes, major_axis):
             shape = list(desc.shape)
             if axis >= 0:
                 shape[axis] = self.slices[i].stop - self.slices[i].start
@@ -586,6 +599,6 @@ class DataParallelExecutorGroup(object):
         return sliced_shapes
 
     def install_monitor(self, mon):
-        """Install monitor on all executors"""
+        """Install monitor on all executors."""
         for exe in self.execs:
             mon.install(exe)

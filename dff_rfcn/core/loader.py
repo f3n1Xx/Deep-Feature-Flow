@@ -5,15 +5,17 @@
 # Licensed under The Apache-2.0 License [see LICENSE for details]
 # Modified by Xizhou Zhu, Yuwen Xiong
 # --------------------------------------------------------
+from itertools import izip
 
 import numpy as np
-import mxnet as mx
-from mxnet.executor_manager import _split_input_slice
 
+import mxnet as mx
 from config.config import config
+from mxnet.executor_manager import _split_input_slice
+from rcnn import get_rcnn_batch, get_rcnn_testbatch
+from rpn.rpn import assign_anchor, get_rpn_pair_batch, get_rpn_testbatch
 from utils.image import tensor_vstack
-from rpn.rpn import get_rpn_testbatch, get_rpn_pair_batch, assign_anchor
-from rcnn import get_rcnn_testbatch, get_rcnn_batch
+
 
 class TestLoader(mx.io.DataIter):
     def __init__(self, roidb, config, batch_size=1, shuffle=False,
@@ -55,15 +57,15 @@ class TestLoader(mx.io.DataIter):
 
     @property
     def provide_data(self):
-        return [[(k, v.shape) for k, v in zip(self.data_name, idata)] for idata in self.data]
+        return [[(k, v.shape) for k, v in izip(self.data_name, idata)] for idata in self.data]
 
     @property
     def provide_label(self):
-        return [None for _ in range(len(self.data))]
+        return [None for _ in xrange(len(self.data))]
 
     @property
     def provide_data_single(self):
-        return [(k, v.shape) for k, v in zip(self.data_name, self.data[0])]
+        return [(k, v.shape) for k, v in izip(self.data_name, self.data[0])]
 
     @property
     def provide_label_single(self):
@@ -88,9 +90,12 @@ class TestLoader(mx.io.DataIter):
                 self.key_frameid = 0
             elif self.cur_frameid - self.key_frameid == self.cfg.TEST.KEY_FRAME_INTERVAL:
                 self.key_frameid = self.cur_frameid
-            return self.im_info, self.key_frame_flag, mx.io.DataBatch(data=self.data, label=self.label,
-                                   pad=self.getpad(), index=self.getindex(),
-                                   provide_data=self.provide_data, provide_label=self.provide_label)
+            return (
+                self.im_info, self.key_frame_flag, mx.io.DataBatch(
+                    data=self.data, label=self.label, pad=self.getpad(), index=self.getindex(),
+                    provide_data=self.provide_data, provide_label=self.provide_label
+                )
+            )
         else:
             raise StopIteration
 
@@ -116,10 +121,13 @@ class TestLoader(mx.io.DataIter):
                 self.key_frame_flag = 1
         else:
             self.key_frame_flag = 2
-        extend_data = [{'data': data[0]['data'],
-                        'im_info': data[0]['im_info'],
-                        'data_key': self.data_key,
-                        'feat_key': np.zeros((1,self.cfg.network.DFF_FEAT_DIM,1,1))}]
+
+        extend_data = [{
+            'data': data[0]['data'],
+            'im_info': data[0]['im_info'],
+            'data_key': self.data_key,
+            'feat_key': np.zeros((1, self.cfg.network.DFF_FEAT_DIM, 1, 1))
+        }]
         self.data = [[mx.nd.array(extend_data[i][name]) for name in self.data_name] for i in xrange(len(data))]
         self.im_info = im_info
 
@@ -187,19 +195,19 @@ class AnchorLoader(mx.io.DataIter):
 
     @property
     def provide_data(self):
-        return [[(k, v.shape) for k, v in zip(self.data_name, self.data[i])] for i in xrange(len(self.data))]
+        return [[(k, v.shape) for k, v in izip(self.data_name, self.data[i])] for i in xrange(len(self.data))]
 
     @property
     def provide_label(self):
-        return [[(k, v.shape) for k, v in zip(self.label_name, self.label[i])] for i in xrange(len(self.data))]
+        return [[(k, v.shape) for k, v in izip(self.label_name, self.label[i])] for i in xrange(len(self.data))]
 
     @property
     def provide_data_single(self):
-        return [(k, v.shape) for k, v in zip(self.data_name, self.data[0])]
+        return [(k, v.shape) for k, v in izip(self.data_name, self.data[0])]
 
     @property
     def provide_label_single(self):
-        return [(k, v.shape) for k, v in zip(self.label_name, self.label[0])]
+        return [(k, v.shape) for k, v in izip(self.label_name, self.label[0])]
 
     def reset(self):
         self.cur = 0
@@ -227,9 +235,10 @@ class AnchorLoader(mx.io.DataIter):
         if self.iter_next():
             self.get_batch_individual()
             self.cur += self.batch_size
-            return mx.io.DataBatch(data=self.data, label=self.label,
-                                   pad=self.getpad(), index=self.getindex(),
-                                   provide_data=self.provide_data, provide_label=self.provide_label)
+            return mx.io.DataBatch(
+                data=self.data, label=self.label, pad=self.getpad(), index=self.getindex(),
+                provide_data=self.provide_data, provide_label=self.provide_label
+            )
         else:
             raise StopIteration
 
@@ -243,7 +252,7 @@ class AnchorLoader(mx.io.DataIter):
             return 0
 
     def infer_shape(self, max_data_shape=None, max_label_shape=None):
-        """ Return maximum data and label shape for single gpu """
+        """Return maximum data and label shape for single gpu."""
         if max_data_shape is None:
             max_data_shape = []
         if max_label_shape is None:
@@ -252,18 +261,20 @@ class AnchorLoader(mx.io.DataIter):
         input_batch_size = max_shapes['data'][0]
         im_info = [[max_shapes['data'][2], max_shapes['data'][3], 1.0]]
         _, feat_shape, _ = self.feat_sym.infer_shape(**max_shapes)
-        label = assign_anchor(feat_shape[0], np.zeros((0, 5)), im_info, self.cfg,
-                              self.feat_stride, self.anchor_scales, self.anchor_ratios, self.allowed_border,
-                              self.normalize_target, self.bbox_mean, self.bbox_std)
+        label = assign_anchor(
+            feat_shape[0], np.zeros((0, 5)), im_info, self.cfg, self.feat_stride,
+            self.anchor_scales, self.anchor_ratios, self.allowed_border, self.normalize_target,
+            self.bbox_mean, self.bbox_std
+        )
         label = [label[k] for k in self.label_name]
-        label_shape = [(k, tuple([input_batch_size] + list(v.shape[1:]))) for k, v in zip(self.label_name, label)]
+        label_shape = [(k, tuple([input_batch_size] + list(v.shape[1:]))) for k, v in izip(self.label_name, label)]
         return max_data_shape, label_shape
 
     def get_batch(self):
         # slice roidb
         cur_from = self.cur
         cur_to = min(cur_from + self.batch_size, self.size)
-        roidb = [self.roidb[self.index[i]] for i in range(cur_from, cur_to)]
+        roidb = [self.roidb[self.index[i]] for i in xrange(cur_from, cur_to)]
 
         # decide multi device slice
         work_load_list = self.work_load_list
@@ -278,18 +289,18 @@ class AnchorLoader(mx.io.DataIter):
         data_list = []
         label_list = []
         for islice in slices:
-            iroidb = [roidb[i] for i in range(islice.start, islice.stop)]
+            iroidb = [roidb[i] for i in xrange(islice.start, islice.stop)]
             data, label = get_rpn_pair_batch(iroidb, self.cfg)
             data_list.append(data)
             label_list.append(label)
 
         # pad data first and then assign anchor (read label)
         data_tensor = tensor_vstack([batch['data'] for batch in data_list])
-        for data, data_pad in zip(data_list, data_tensor):
+        for data, data_pad in izip(data_list, data_tensor):
             data['data'] = data_pad[np.newaxis, :]
 
         new_label_list = []
-        for data, label in zip(data_list, label_list):
+        for data, label in izip(data_list, label_list):
             # infer label shape
             data_shape = {k: v.shape for k, v in data.items()}
             del data_shape['im_info']
@@ -300,10 +311,11 @@ class AnchorLoader(mx.io.DataIter):
             data['gt_boxes'] = label['gt_boxes'][np.newaxis, :, :]
 
             # assign anchor for label
-            label = assign_anchor(feat_shape, label['gt_boxes'], data['im_info'], self.cfg,
-                                  self.feat_stride, self.anchor_scales,
-                                  self.anchor_ratios, self.allowed_border,
-                                  self.normalize_target, self.bbox_mean, self.bbox_std)
+            label = assign_anchor(
+                feat_shape, label['gt_boxes'], data['im_info'], self.cfg, self.feat_stride,
+                self.anchor_scales, self.anchor_ratios, self.allowed_border, self.normalize_target,
+                self.bbox_mean, self.bbox_std
+            )
             new_label_list.append(label)
 
         all_data = dict()
@@ -321,7 +333,7 @@ class AnchorLoader(mx.io.DataIter):
     def get_batch_individual(self):
         cur_from = self.cur
         cur_to = min(cur_from + self.batch_size, self.size)
-        roidb = [self.roidb[self.index[i]] for i in range(cur_from, cur_to)]
+        roidb = [self.roidb[self.index[i]] for i in xrange(cur_from, cur_to)]
         # decide multi device slice
         work_load_list = self.work_load_list
         ctx = self.ctx
@@ -331,8 +343,8 @@ class AnchorLoader(mx.io.DataIter):
             "Invalid settings for work load. "
         slices = _split_input_slice(self.batch_size, work_load_list)
         rst = []
-        for idx, islice in enumerate(slices):
-            iroidb = [roidb[i] for i in range(islice.start, islice.stop)]
+        for islice in slices:
+            iroidb = [roidb[i] for i in xrange(islice.start, islice.stop)]
             rst.append(self.parfetch(iroidb))
         all_data = [_['data'] for _ in rst]
         all_label = [_['label'] for _ in rst]
@@ -351,9 +363,9 @@ class AnchorLoader(mx.io.DataIter):
         data['gt_boxes'] = label['gt_boxes'][np.newaxis, :, :]
 
         # assign anchor for label
-        label = assign_anchor(feat_shape, label['gt_boxes'], data['im_info'], self.cfg,
-                              self.feat_stride, self.anchor_scales,
-                              self.anchor_ratios, self.allowed_border,
-                              self.normalize_target, self.bbox_mean, self.bbox_std)
+        label = assign_anchor(
+            feat_shape, label['gt_boxes'], data['im_info'], self.cfg, self.feat_stride,
+            self.anchor_scales, self.anchor_ratios, self.allowed_border, self.normalize_target,
+            self.bbox_mean, self.bbox_std
+        )
         return {'data': data, 'label': label}
-

@@ -139,7 +139,7 @@ def main():
             boxes = boxes_all[batch_idx].astype('f')
             scores = scores_all[batch_idx].astype('f')
             dets_nms = []
-            for j in range(1, scores.shape[1]):
+            for j in xrange(1, scores.shape[1]):
                 cls_scores = scores[:, j, np.newaxis]
                 cls_boxes = boxes[:, 4:8] if config.CLASS_AGNOSTIC else boxes[:, j * 4:(j + 1) * 4]
                 cls_dets = np.hstack((cls_boxes, cls_scores))

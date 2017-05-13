@@ -5,9 +5,10 @@
 # Licensed under The Apache-2.0 License [see LICENSE for details]
 # Modified by Yuwen Xiong
 # --------------------------------------------------------
-
-import time
 import logging
+import time
+from itertools import izip
+
 import mxnet as mx
 
 
@@ -29,15 +30,15 @@ class Speedometer(object):
         if self.init:
             if count % self.frequent == 0:
                 speed = self.frequent * self.batch_size / (time.time() - self.tic)
-                s = ''
+                s = []
                 if param.eval_metric is not None:
                     name, value = param.eval_metric.get()
-                    s = "Epoch[%d] Batch [%d]\tSpeed: %.2f samples/sec\tTrain-" % (param.epoch, count, speed)
-                    for n, v in zip(name, value):
-                        s += "%s=%f,\t" % (n, v)
+                    s.append('Epoch[%d] Batch [%d]\tSpeed: %.2f samples/sec\tTrain-' % (param.epoch, count, speed))
+                    for n, v in izip(name, value):
+                        s.append('%s=%f,\t' % (n, v))
                 else:
-                    s = "Iter[%d] Batch [%d]\tSpeed: %.2f samples/sec" % (param.epoch, count, speed)
-
+                    s.append('Iter[%d] Batch [%d]\tSpeed: %.2f samples/sec' % (param.epoch, count, speed))
+                s = ''.join(s)
                 logging.info(s)
                 print(s)
                 self.tic = time.time()
@@ -47,6 +48,7 @@ class Speedometer(object):
 
 
 def do_checkpoint(prefix, means, stds):
+
     def _callback(iter_no, sym, arg, aux):
         weight = arg['rfcn_bbox_weight']
         bias = arg['rfcn_bbox_bias']

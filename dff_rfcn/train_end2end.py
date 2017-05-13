@@ -114,8 +114,8 @@ def train_net(args, ctx, pretrained, pretrained_flow, epoch, prefix, begin_epoch
     label_names = [k[0] for k in train_data.provide_label_single]
 
     mod = MutableModule(sym, data_names=data_names, label_names=label_names,
-                        logger=logger, context=ctx, max_data_shapes=[max_data_shape for _ in range(batch_size)],
-                        max_label_shapes=[max_label_shape for _ in range(batch_size)], fixed_param_prefix=fixed_param_prefix)
+                        logger=logger, context=ctx, max_data_shapes=[max_data_shape for _ in xrange(batch_size)],
+                        max_label_shapes=[max_label_shape for _ in xrange(batch_size)], fixed_param_prefix=fixed_param_prefix)
 
     if config.TRAIN.RESUME:
         mod._preload_opt_states = '%s-%04d.states'%(prefix, begin_epoch)

@@ -10,14 +10,14 @@
 Proposal Target Operator selects foreground and background roi and assigns label, bbox_transform to them.
 """
 
-import mxnet as mx
-import numpy as np
-from distutils.util import strtobool
-from easydict import EasyDict as edict
 import cPickle
+from distutils.util import strtobool
 
+import numpy as np
 
+import mxnet as mx
 from core.rcnn import sample_rois
+from easydict import EasyDict as edict
 
 DEBUG = False
 
@@ -110,7 +110,10 @@ class ProposalTargetProp(mx.operator.CustomOpProp):
                [output_rois_shape, label_shape, bbox_target_shape, bbox_weight_shape]
 
     def create_operator(self, ctx, shapes, dtypes):
-        return ProposalTargetOperator(self._num_classes, self._batch_images, self._batch_rois, self._cfg, self._fg_fraction)
+        return ProposalTargetOperator(
+            self._num_classes, self._batch_images,
+            self._batch_rois, self._cfg, self._fg_fraction
+        )
 
     def declare_backward_dependency(self, out_grad, in_data, out_data):
         return []

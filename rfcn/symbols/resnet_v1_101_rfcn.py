@@ -14,17 +14,15 @@ from operator_py.box_annotator_ohem import *
 from operator_py.rpn_inv_normalize import *
 
 class resnet_v1_101_rfcn(Symbol):
-    
+
     def __init__(self):
-        """
-        Use __init__ to define parameter network needs
-        """
+        """Use __init__ to define parameter network needs."""
         self.eps = 1e-5
         self.use_global_stats = True
         self.workspace = 512
         self.units = (3, 4, 23, 3) # use for 101
         self.filter_list = [256, 512, 1024, 2048]
-    
+
     def get_resnet_v1(self, data):
         conv1 = mx.symbol.Convolution(name='conv1', data=data , num_filter=64, pad=(3,3), kernel=(7,7), stride=(2,2), no_bias=True)
         bn_conv1 = mx.symbol.BatchNorm(name='bn_conv1', data=conv1 , use_global_stats=self.use_global_stats, eps=self.eps, fix_gamma=False)
@@ -477,7 +475,7 @@ class resnet_v1_101_rfcn(Symbol):
             data=res5c_relu, kernel=(3, 3), pad=(6, 6), dilate=(6, 6), num_filter=1024, name="feat_conv_3x3")
         feat_conv_3x3_relu = mx.sym.Activation(data=feat_conv_3x3, act_type="relu", name="feat_conv_3x3_relu")
         return feat_conv_3x3_relu
-    
+
     def get_train_symbol(self, cfg):
 
         # config alias for convenient
@@ -491,22 +489,22 @@ class resnet_v1_101_rfcn(Symbol):
         rpn_label = mx.sym.Variable(name='label')
         rpn_bbox_target = mx.sym.Variable(name='bbox_target')
         rpn_bbox_weight = mx.sym.Variable(name='bbox_weight')
-    
+
         # shared convolutional layers
         conv_feat = self.get_resnet_v1(data)
         conv_feats = mx.sym.SliceChannel(conv_feat, axis=1, num_outputs=2)
-    
+
         # RPN layers
         rpn_feat = conv_feats[0]
         rpn_cls_score = mx.sym.Convolution(
             data=rpn_feat, kernel=(1, 1), pad=(0, 0), num_filter=2 * num_anchors, name="rpn_cls_score")
         rpn_bbox_pred = mx.sym.Convolution(
             data=rpn_feat, kernel=(1, 1), pad=(0, 0), num_filter=4 * num_anchors, name="rpn_bbox_pred")
-    
+
         # prepare rpn data
         rpn_cls_score_reshape = mx.sym.Reshape(
             data=rpn_cls_score, shape=(0, 2, -1, 0), name="rpn_cls_score_reshape")
-    
+
         # classification
         rpn_cls_prob = mx.sym.SoftmaxOutput(data=rpn_cls_score_reshape, label=rpn_label, multi_output=True,
                                                normalization='valid', use_ignore=True, ignore_label=-1, name="rpn_cls_prob")
@@ -519,7 +517,7 @@ class resnet_v1_101_rfcn(Symbol):
         else:
             rpn_bbox_loss_ = rpn_bbox_weight * mx.sym.smooth_l1(name='rpn_bbox_loss_', scalar=3.0, data=(rpn_bbox_pred - rpn_bbox_target))
         rpn_bbox_loss = mx.sym.MakeLoss(name='rpn_bbox_loss', data=rpn_bbox_loss_, grad_scale=1.0 / cfg.TRAIN.RPN_BATCH_SIZE)
-    
+
         # ROI proposal
         rpn_cls_act = mx.sym.SoftmaxActivation(
             data=rpn_cls_score_reshape, mode="channel", name="rpn_cls_act")
@@ -539,7 +537,7 @@ class resnet_v1_101_rfcn(Symbol):
                 scales=tuple(cfg.network.ANCHOR_SCALES), ratios=tuple(cfg.network.ANCHOR_RATIOS),
                 rpn_pre_nms_top_n=cfg.TRAIN.RPN_PRE_NMS_TOP_N, rpn_post_nms_top_n=cfg.TRAIN.RPN_POST_NMS_TOP_N,
                 threshold=cfg.TRAIN.RPN_NMS_THRESH, rpn_min_size=cfg.TRAIN.RPN_MIN_SIZE)
-    
+
          # ROI proposal target
         gt_boxes_reshape = mx.sym.Reshape(data=gt_boxes, shape=(-1, 5), name='gt_boxes_reshape')
         rois, label, bbox_target, bbox_weight = mx.sym.Custom(rois=rois, gt_boxes=gt_boxes_reshape,
@@ -549,7 +547,7 @@ class resnet_v1_101_rfcn(Symbol):
                                                                   batch_rois=cfg.TRAIN.BATCH_ROIS,
                                                                   cfg=cPickle.dumps(cfg),
                                                                   fg_fraction=cfg.TRAIN.FG_FRACTION)
-    
+
         # res5
         rfcn_feat = conv_feats[1]
         rfcn_cls = mx.sym.Convolution(data=rfcn_feat, kernel=(1, 1), num_filter=7*7*num_classes, name="rfcn_cls")
@@ -562,15 +560,17 @@ class resnet_v1_101_rfcn(Symbol):
         bbox_pred = mx.sym.Pooling(name='ave_bbox_pred_rois', data=psroipooled_loc_rois, pool_type='avg', global_pool=True, kernel=(7, 7))
         cls_score = mx.sym.Reshape(name='cls_score_reshape', data=cls_score, shape=(-1, num_classes))
         bbox_pred = mx.sym.Reshape(name='bbox_pred_reshape', data=bbox_pred, shape=(-1, 4 * num_reg_classes))
-    
-    
+
+
         # classification
         if cfg.TRAIN.ENABLE_OHEM:
             print 'use ohem!'
-            labels_ohem, bbox_weights_ohem = mx.sym.Custom(op_type='BoxAnnotatorOHEM', num_classes=num_classes,
-                                                           num_reg_classes=num_reg_classes, roi_per_img=cfg.TRAIN.BATCH_ROIS_OHEM,
-                                                           cls_score=cls_score, bbox_pred=bbox_pred, labels=label,
-                                                           bbox_targets=bbox_target, bbox_weights=bbox_weight)
+            labels_ohem, bbox_weights_ohem = mx.sym.Custom(
+                op_type='BoxAnnotatorOHEM', num_classes=num_classes,
+                num_reg_classes=num_reg_classes, roi_per_img=cfg.TRAIN.BATCH_ROIS_OHEM,
+                cls_score=cls_score, bbox_pred=bbox_pred, labels=label,
+                bbox_targets=bbox_target, bbox_weights=bbox_weight
+            )
             cls_prob = mx.sym.SoftmaxOutput(name='cls_prob', data=cls_score, label=labels_ohem, normalization='valid', use_ignore=True, ignore_label=-1)
             bbox_loss_ = bbox_weights_ohem * mx.sym.smooth_l1(name='bbox_loss_', scalar=1.0, data=(bbox_pred - bbox_target))
             bbox_loss = mx.sym.MakeLoss(name='bbox_loss', data=bbox_loss_, grad_scale=1.0 / cfg.TRAIN.BATCH_ROIS_OHEM)
@@ -580,18 +580,18 @@ class resnet_v1_101_rfcn(Symbol):
             bbox_loss_ = bbox_weight * mx.sym.smooth_l1(name='bbox_loss_', scalar=1.0, data=(bbox_pred - bbox_target))
             bbox_loss = mx.sym.MakeLoss(name='bbox_loss', data=bbox_loss_, grad_scale=1.0 / cfg.TRAIN.BATCH_ROIS)
             rcnn_label = label
-    
+
         # reshape output
         rcnn_label = mx.sym.Reshape(data=rcnn_label, shape=(cfg.TRAIN.BATCH_IMAGES, -1), name='label_reshape')
         cls_prob = mx.sym.Reshape(data=cls_prob, shape=(cfg.TRAIN.BATCH_IMAGES, -1, num_classes), name='cls_prob_reshape')
         bbox_loss = mx.sym.Reshape(data=bbox_loss, shape=(cfg.TRAIN.BATCH_IMAGES, -1, 4 * num_reg_classes), name='bbox_loss_reshape')
-    
+
         group = mx.sym.Group([rpn_cls_prob, rpn_bbox_loss, cls_prob, bbox_loss, mx.sym.BlockGrad(rcnn_label)])
         self.sym = group
         return group
 
     def get_test_symbol(self, cfg):
-    
+
         # config alias for convenient
         num_classes = cfg.dataset.NUM_CLASSES
         num_reg_classes = (2 if cfg.CLASS_AGNOSTIC else num_classes)
@@ -599,23 +599,23 @@ class resnet_v1_101_rfcn(Symbol):
 
         data = mx.sym.Variable(name="data")
         im_info = mx.sym.Variable(name="im_info")
-    
+
         # shared convolutional layers
         conv_feat = self.get_resnet_v1(data)
         conv_feats = mx.sym.SliceChannel(conv_feat, axis=1, num_outputs=2)
-    
+
         # RPN
         rpn_feat = conv_feats[0]
         rpn_cls_score = mx.sym.Convolution(
             data=rpn_feat, kernel=(1, 1), pad=(0, 0), num_filter=2 * num_anchors, name="rpn_cls_score")
         rpn_bbox_pred = mx.sym.Convolution(
             data=rpn_feat, kernel=(1, 1), pad=(0, 0), num_filter=4 * num_anchors, name="rpn_bbox_pred")
-    
+
         if cfg.network.NORMALIZE_RPN:
             rpn_bbox_pred = mx.sym.Custom(
                 bbox_pred=rpn_bbox_pred, op_type='rpn_inv_normalize', num_anchors=num_anchors,
                 bbox_mean=cfg.network.ANCHOR_MEANS, bbox_std=cfg.network.ANCHOR_STDS)
-    
+
         # ROI Proposal
         rpn_cls_score_reshape = mx.sym.Reshape(
             data=rpn_cls_score, shape=(0, 2, -1, 0), name="rpn_cls_score_reshape")
@@ -632,7 +632,7 @@ class resnet_v1_101_rfcn(Symbol):
                 threshold=cfg.TEST.RPN_NMS_THRESH, rpn_min_size=cfg.TEST.RPN_MIN_SIZE)
         else:
             NotImplemented
-    
+
         # res5
         rfcn_feat = conv_feats[1]
         rfcn_cls = mx.sym.Convolution(data=rfcn_feat, kernel=(1, 1), num_filter=7*7*num_classes, name="rfcn_cls")
@@ -643,17 +643,17 @@ class resnet_v1_101_rfcn(Symbol):
                                                    output_dim=8, spatial_scale=0.0625)
         cls_score = mx.sym.Pooling(name='ave_cls_scors_rois', data=psroipooled_cls_rois, pool_type='avg', global_pool=True, kernel=(7, 7))
         bbox_pred = mx.sym.Pooling(name='ave_bbox_pred_rois', data=psroipooled_loc_rois, pool_type='avg', global_pool=True, kernel=(7, 7))
-    
+
         # classification
         cls_score = mx.sym.Reshape(name='cls_score_reshape', data=cls_score, shape=(-1, num_classes))
         cls_prob = mx.sym.SoftmaxActivation(name='cls_prob', data=cls_score)
         # bounding box regression
         bbox_pred = mx.sym.Reshape(name='bbox_pred_reshape', data=bbox_pred, shape=(-1, 4 * num_reg_classes))
-    
+
         # reshape output
         cls_prob = mx.sym.Reshape(data=cls_prob, shape=(cfg.TEST.BATCH_IMAGES, -1, num_classes), name='cls_prob_reshape')
         bbox_pred = mx.sym.Reshape(data=bbox_pred, shape=(cfg.TEST.BATCH_IMAGES, -1, 4 * num_reg_classes), name='bbox_pred_reshape')
-    
+
         # group output
         group = mx.sym.Group([rois, cls_prob, bbox_pred])
         self.sym = group

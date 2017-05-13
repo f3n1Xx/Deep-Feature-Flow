@@ -7,9 +7,10 @@
 # --------------------------------------------------------
 
 
-import mxnet as mx
-from mxnet.io import DataDesc, DataBatch
 import threading
+
+import mxnet as mx
+from mxnet.io import DataBatch, DataDesc
 
 
 class PrefetchingIter(mx.io.DataIter):
@@ -43,13 +44,13 @@ class PrefetchingIter(mx.io.DataIter):
         self.rename_data = rename_data
         self.rename_label = rename_label
         self.batch_size = len(self.provide_data) * self.provide_data[0][0][1][0]
-        self.data_ready = [threading.Event() for i in range(self.n_iter)]
-        self.data_taken = [threading.Event() for i in range(self.n_iter)]
+        self.data_ready = [threading.Event() for i in xrange(self.n_iter)]
+        self.data_taken = [threading.Event() for i in xrange(self.n_iter)]
         for e in self.data_taken:
             e.set()
         self.started = True
-        self.current_batch = [None for _ in range(self.n_iter)]
-        self.next_batch = [None for _ in range(self.n_iter)]
+        self.current_batch = [None for _ in xrange(self.n_iter)]
+        self.next_batch = [None for _ in xrange(self.n_iter)]
         def prefetch_func(self, i):
             """Thread entry"""
             while True:
@@ -63,7 +64,7 @@ class PrefetchingIter(mx.io.DataIter):
                 self.data_taken[i].clear()
                 self.data_ready[i].set()
         self.prefetch_threads = [threading.Thread(target=prefetch_func, args=[self, i]) \
-                                 for i in range(self.n_iter)]
+                                 for i in xrange(self.n_iter)]
         for thread in self.prefetch_threads:
             thread.setDaemon(True)
             thread.start()

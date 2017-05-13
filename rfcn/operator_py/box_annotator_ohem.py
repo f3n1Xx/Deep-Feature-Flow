@@ -9,11 +9,11 @@
 Proposal Target Operator selects foreground and background roi and assigns label, bbox_transform to them.
 """
 
-import mxnet as mx
-import numpy as np
 from distutils.util import strtobool
 
+import numpy as np
 
+import mxnet as mx
 
 
 class BoxAnnotatorOHEMOperator(mx.operator.CustomOp):
@@ -54,7 +54,7 @@ class BoxAnnotatorOHEMOperator(mx.operator.CustomOp):
 
 
     def backward(self, req, out_grad, in_data, out_data, in_grad, aux):
-        for i in range(len(in_grad)):
+        for i in xrange(len(in_grad)):
             self.assign(in_grad[i], req[i], 0)
 
 

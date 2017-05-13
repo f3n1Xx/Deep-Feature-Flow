@@ -5,9 +5,12 @@
 # Written by Xizhou Zhu
 # --------------------------------------------------------
 
-import mxnet as mx
-import numpy as np
 from distutils.util import strtobool
+
+import numpy as np
+
+import mxnet as mx
+
 
 class TileAsOperator(mx.operator.CustomOp):
     def __init__(self):
@@ -38,7 +41,12 @@ class TileAsProp(mx.operator.CustomOpProp):
         data_content_shape = in_shape[0]
         data_shape_shape = in_shape[1]
 
-        tiled_data_shape = (data_shape_shape[0], data_content_shape[1], data_content_shape[2], data_content_shape[3])
+        tiled_data_shape = (
+            data_shape_shape[0],
+            data_content_shape[1],
+            data_content_shape[2],
+            data_content_shape[3]
+        )
 
         return [data_content_shape, data_shape_shape], \
                [tiled_data_shape]

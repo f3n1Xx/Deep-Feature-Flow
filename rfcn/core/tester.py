@@ -9,13 +9,14 @@
 import cPickle
 import os
 import time
-import mxnet as mx
+
 import numpy as np
 
-from module import MutableModule
-from utils import image
+import mxnet as mx
 from bbox.bbox_transform import bbox_pred, clip_boxes
-from nms.nms import py_nms_wrapper, cpu_nms_wrapper, gpu_nms_wrapper
+from module import MutableModule
+from nms.nms import cpu_nms_wrapper, gpu_nms_wrapper, py_nms_wrapper
+from utils import image
 from utils.PrefetchingIter import PrefetchingIter
 
 
@@ -213,8 +214,8 @@ def pred_eval(predictor, test_data, imdb, cfg, vis=False, thresh=1e-3, logger=No
     # all detections are collected into:
     #    all_boxes[cls][image] = N x 5 array of detections in
     #    (x1, y1, x2, y2, score)
-    all_boxes = [[[] for _ in range(num_images)]
-                 for _ in range(imdb.num_classes)]
+    all_boxes = [[[] for _ in xrange(num_images)]
+                 for _ in xrange(imdb.num_classes)]
 
     idx = 0
     data_time, net_time, post_time = 0.0, 0.0, 0.0
@@ -229,7 +230,7 @@ def pred_eval(predictor, test_data, imdb, cfg, vis=False, thresh=1e-3, logger=No
         t2 = time.clock() - t
         t = time.clock()
         for delta, (scores, boxes, data_dict) in enumerate(zip(scores_all, boxes_all, data_dict_all)):
-            for j in range(1, imdb.num_classes):
+            for j in xrange(1, imdb.num_classes):
                 indexes = np.where(scores[:, j] > thresh)[0]
                 cls_scores = scores[indexes, j, np.newaxis]
                 cls_boxes = boxes[indexes, 4:8] if cfg.CLASS_AGNOSTIC else boxes[indexes, j * 4:(j + 1) * 4]
@@ -239,15 +240,15 @@ def pred_eval(predictor, test_data, imdb, cfg, vis=False, thresh=1e-3, logger=No
 
             if max_per_image > 0:
                 image_scores = np.hstack([all_boxes[j][idx+delta][:, -1]
-                                          for j in range(1, imdb.num_classes)])
+                                          for j in xrange(1, imdb.num_classes)])
                 if len(image_scores) > max_per_image:
                     image_thresh = np.sort(image_scores)[-max_per_image]
-                    for j in range(1, imdb.num_classes):
+                    for j in xrange(1, imdb.num_classes):
                         keep = np.where(all_boxes[j][idx+delta][:, -1] >= image_thresh)[0]
                         all_boxes[j][idx+delta] = all_boxes[j][idx+delta][keep, :]
 
             if vis:
-                boxes_this_image = [[]] + [all_boxes[j][idx+delta] for j in range(1, imdb.num_classes)]
+                boxes_this_image = [[]] + [all_boxes[j][idx+delta] for j in xrange(1, imdb.num_classes)]
                 vis_all_detection(data_dict['data'].asnumpy(), boxes_this_image, imdb.classes, scales[delta], cfg)
 
         idx += test_data.batch_size

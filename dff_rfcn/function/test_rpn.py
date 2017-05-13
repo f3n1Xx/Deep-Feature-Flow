@@ -55,14 +55,18 @@ def test_rpn(cfg, dataset, image_set, root_path, dataset_path,
 
     # decide maximum shape
     data_names = [k[0] for k in test_data.provide_data[0]]
-    label_names = None if test_data.provide_label[0] is None else [k[0] for k in test_data.provide_label[0]]
+    label_names = (
+        None if test_data.provide_label[0] is None
+        else [k[0] for k in test_data.provide_label[0]]
+    )
     max_data_shape = [[('data', (1, 3, max([v[0] for v in cfg.SCALES]), max([v[1] for v in cfg.SCALES])))]]
 
     # create predictor
-    predictor = Predictor(sym, data_names, label_names,
-                          context=ctx, max_data_shapes=max_data_shape,
-                          provide_data=test_data.provide_data, provide_label=test_data.provide_label,
-                          arg_params=arg_params, aux_params=aux_params)
+    predictor = Predictor(
+        sym, data_names, label_names, context=ctx, max_data_shapes=max_data_shape,
+        provide_data=test_data.provide_data, provide_label=test_data.provide_label,
+        arg_params=arg_params, aux_params=aux_params
+    )
 
     # start testing
     imdb_boxes = generate_proposals(predictor, test_data, imdb, cfg, vis=vis, thresh=thresh)

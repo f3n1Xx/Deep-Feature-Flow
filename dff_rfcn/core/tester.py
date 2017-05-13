@@ -5,18 +5,19 @@
 # Licensed under The Apache-2.0 License [see LICENSE for details]
 # Modified by Xizhou Zhu, Yuwen Xiong
 # --------------------------------------------------------
-
-from multiprocessing.pool import ThreadPool as Pool
 import cPickle
 import os
 import time
-import mxnet as mx
+from itertools import izip
+from multiprocessing.pool import ThreadPool as Pool
+
 import numpy as np
 
-from module import MutableModule
-from utils import image
+import mxnet as mx
 from bbox.bbox_transform import bbox_pred, clip_boxes
-from nms.nms import py_nms_wrapper, cpu_nms_wrapper, gpu_nms_wrapper
+from module import MutableModule
+from nms.nms import cpu_nms_wrapper, gpu_nms_wrapper, py_nms_wrapper
+from utils import image
 from utils.PrefetchingIter import PrefetchingIter
 
 
@@ -33,17 +34,17 @@ class Predictor(object):
     def predict(self, data_batch):
         self._mod.forward(data_batch)
         # [dict(zip(self._mod.output_names, _)) for _ in zip(*self._mod.get_outputs(merge_multi_context=False))]
-        return [dict(zip(self._mod.output_names, _)) for _ in zip(*self._mod.get_outputs(merge_multi_context=False))]
+        return [dict(izip(self._mod.output_names, _)) for _ in izip(*self._mod.get_outputs(merge_multi_context=False))]
 
 
 def im_proposal(predictor, data_batch, data_names, scales):
     output_all = predictor.predict(data_batch)
 
-    data_dict_all = [dict(zip(data_names, data_batch.data[i])) for i in xrange(len(data_batch.data))]
+    data_dict_all = [dict(izip(data_names, data_batch.data[i])) for i in xrange(len(data_batch.data))]
     scores_all = []
     boxes_all = []
 
-    for output, data_dict, scale in zip(output_all, data_dict_all, scales):
+    for output, data_dict, scale in izip(output_all, data_dict_all, scales):
         # drop the batch index
         boxes = output['rois_output'].asnumpy()[:, 1:]
         scores = output['rois_score'].asnumpy()
@@ -84,7 +85,7 @@ def generate_proposals(predictor, test_data, imdb, cfg, vis=False, thresh=0.):
         scores_all, boxes_all, data_dict_all = im_proposal(predictor, data_batch, data_names, scales)
         t2 = time.time() - t
         t = time.time()
-        for delta, (scores, boxes, data_dict, scale) in enumerate(zip(scores_all, boxes_all, data_dict_all, scales)):
+        for delta, (scores, boxes, data_dict, scale) in enumerate(izip(scores_all, boxes_all, data_dict_all, scales)):
             # assemble proposals
             dets = np.hstack((boxes, scores))
             original_boxes.append(dets)
@@ -219,8 +220,8 @@ def pred_eval(gpu_id, key_predictor, cur_predictor, test_data, imdb, cfg, vis=Fa
     # all detections are collected into:
     #    all_boxes[cls][image] = N x 5 array of detections in
     #    (x1, y1, x2, y2, score)
-    all_boxes = [[[] for _ in range(num_images)]
-                 for _ in range(imdb.num_classes)]
+    all_boxes = [[[] for _ in xrange(num_images)]
+                 for _ in xrange(imdb.num_classes)]
     frame_ids = np.zeros(num_images, dtype=np.int)
 
     roidb_idx = -1
@@ -251,7 +252,7 @@ def pred_eval(gpu_id, key_predictor, cur_predictor, test_data, imdb, cfg, vis=Fa
         t2 = time.time() - t
         t = time.time()
         for delta, (scores, boxes, data_dict) in enumerate(zip(scores_all, boxes_all, data_dict_all)):
-            for j in range(1, imdb.num_classes):
+            for j in xrange(1, imdb.num_classes):
                 indexes = np.where(scores[:, j] > thresh)[0]
                 cls_scores = scores[indexes, j, np.newaxis]
                 cls_boxes = boxes[indexes, 4:8] if cfg.CLASS_AGNOSTIC else boxes[indexes, j * 4:(j + 1) * 4]
@@ -261,15 +262,15 @@ def pred_eval(gpu_id, key_predictor, cur_predictor, test_data, imdb, cfg, vis=Fa
 
             if max_per_image > 0:
                 image_scores = np.hstack([all_boxes[j][idx+delta][:, -1]
-                                          for j in range(1, imdb.num_classes)])
+                                          for j in xrange(1, imdb.num_classes)])
                 if len(image_scores) > max_per_image:
                     image_thresh = np.sort(image_scores)[-max_per_image]
-                    for j in range(1, imdb.num_classes):
+                    for j in xrange(1, imdb.num_classes):
                         keep = np.where(all_boxes[j][idx+delta][:, -1] >= image_thresh)[0]
                         all_boxes[j][idx+delta] = all_boxes[j][idx+delta][keep, :]
 
             if vis:
-                boxes_this_image = [[]] + [all_boxes[j][idx+delta] for j in range(1, imdb.num_classes)]
+                boxes_this_image = [[]] + [all_boxes[j][idx+delta] for j in xrange(1, imdb.num_classes)]
                 vis_all_detection(data_dict['data'].asnumpy(), boxes_this_image, imdb.classes, scales[delta], cfg)
 
         idx += test_data.batch_size
@@ -292,7 +293,7 @@ def pred_eval_multiprocess(gpu_num, key_predictors, cur_predictors, test_datas, 
         res = [pred_eval(0, key_predictors[0], cur_predictors[0], test_datas[0], imdb, cfg, vis, thresh, logger, ignore_cache),]
     else:
         pool = Pool(processes=gpu_num)
-        multiple_results = [pool.apply_async(pred_eval,args=(i, key_predictors[i], cur_predictors[i], test_datas[i], imdb, cfg, vis, thresh, logger, ignore_cache)) for i in range(gpu_num)]
+        multiple_results = [pool.apply_async(pred_eval,args=(i, key_predictors[i], cur_predictors[i], test_datas[i], imdb, cfg, vis, thresh, logger, ignore_cache)) for i in xrange(gpu_num)]
         pool.close()
         pool.join()
         res = [res.get() for res in multiple_results]

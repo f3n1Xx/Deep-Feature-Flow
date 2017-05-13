@@ -1,4 +1,5 @@
 import numpy as np
+
 import cv2
 
 
@@ -73,11 +74,11 @@ def tensor_vstack(tensor_list, pad=0):
     if ndim == 1:
         return np.hstack(tensor_list)
     dimensions = [0]
-    for dim in range(1, ndim):
+    for dim in xrange(1, ndim):
         dimensions.append(max([tensor.shape[dim] for tensor in tensor_list]))
     for ind, tensor in enumerate(tensor_list):
         pad_shape = [(0, 0)]
-        for dim in range(1, ndim):
+        for dim in xrange(1, ndim):
             pad_shape.append((0, dimensions[dim] - tensor.shape[dim]))
         tensor_list[ind] = np.lib.pad(tensor, pad_shape, 'constant', constant_values=pad)
     all_tensor = np.vstack(tensor_list)

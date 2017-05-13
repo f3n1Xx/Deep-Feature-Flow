@@ -13,9 +13,9 @@ label =
 import numpy as np
 import numpy.random as npr
 
-from utils.image import get_image, get_pair_image, tensor_vstack
-from generate_anchor import generate_anchors
 from bbox.bbox_transform import bbox_overlaps, bbox_transform
+from generate_anchor import generate_anchors
+from utils.image import get_image, get_pair_image, tensor_vstack
 
 
 def get_rpn_testbatch(roidb, cfg):
@@ -27,10 +27,10 @@ def get_rpn_testbatch(roidb, cfg):
     # assert len(roidb) == 1, 'Single batch only'
     imgs, roidb = get_image(roidb, cfg)
     im_array = imgs
-    im_info = [np.array([roidb[i]['im_info']], dtype=np.float32) for i in range(len(roidb))]
+    im_info = [np.array([roidb[i]['im_info']], dtype=np.float32) for i in xrange(len(roidb))]
 
     data = [{'data': im_array[i],
-            'im_info': im_info[i]} for i in range(len(roidb))]
+            'im_info': im_info[i]} for i in xrange(len(roidb))]
     label = {}
 
     return data, label, im_info

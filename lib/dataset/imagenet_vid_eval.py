@@ -9,9 +9,10 @@
 given a imagenet vid imdb, compute mAP
 """
 
-import numpy as np
-import os
 import cPickle
+import os
+
+import numpy as np
 
 
 def parse_vid_rec(filename, classhash, img_ids, defaultIOUthr=0.5, pixelTolerance=10):
@@ -56,7 +57,7 @@ def vid_ap(rec, prec):
     mpre = np.concatenate(([0.], prec, [0.]))
 
     # compute precision integration ladder
-    for i in range(mpre.size - 1, 0, -1):
+    for i in xrange(mpre.size - 1, 0, -1):
         mpre[i - 1] = np.maximum(mpre[i - 1], mpre[i])
 
     # look for recall value changes
@@ -128,7 +129,7 @@ def vid_eval(detpath, annopath, imageset_file, classname_map, annocache, ovthres
     obj_bboxes_cell = [None] * num_imgs
     start_i = 0
     id = img_ids[0]
-    for i in range(0, len(img_ids)):
+    for i in xrange(0, len(img_ids)):
         if i == len(img_ids)-1 or img_ids[i+1] != id:
             conf = obj_confs[start_i:i+1]
             label = obj_labels[start_i:i+1]
@@ -162,11 +163,11 @@ def vid_eval(detpath, annopath, imageset_file, classname_map, annocache, ovthres
         tp = np.zeros(num_obj)
         fp = np.zeros(num_obj)
 
-        for j in range(0,num_obj):
+        for j in xrange(0,num_obj):
             bb = bboxes[j, :]
             ovmax = -1
             kmax = -1
-            for k in range(0,num_gt_obj):
+            for k in xrange(0,num_gt_obj):
                 if labels[j] != gt_labels[k]:
                     continue
                 if gt_detected[k] > 0:
@@ -175,7 +176,7 @@ def vid_eval(detpath, annopath, imageset_file, classname_map, annocache, ovthres
                 bi=[np.max((bb[0],bbgt[0])), np.max((bb[1],bbgt[1])), np.min((bb[2],bbgt[2])), np.min((bb[3],bbgt[3]))]
                 iw=bi[2]-bi[0]+1
                 ih=bi[3]-bi[1]+1
-                if iw>0 and ih>0:            
+                if iw>0 and ih>0:
                     # compute overlap as area of intersection / area of union
                     ua = (bb[2] - bb[0] + 1.) * (bb[3] - bb[1] + 1.) + \
                            (bbgt[2] - bbgt[0] + 1.) * \
@@ -206,7 +207,7 @@ def vid_eval(detpath, annopath, imageset_file, classname_map, annocache, ovthres
     obj_labels = obj_labels[sorted_inds]
 
     ap = np.zeros(len(classname_map))
-    for c in range(1, len(classname_map)):
+    for c in xrange(1, len(classname_map)):
         # compute precision recall
         fp = np.cumsum(fp_all[obj_labels == c])
         tp = np.cumsum(tp_all[obj_labels == c])

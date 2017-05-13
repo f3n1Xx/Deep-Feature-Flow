@@ -22,9 +22,9 @@ roidb extended format [image_index]
 import numpy as np
 import numpy.random as npr
 
-from utils.image import get_image, tensor_vstack
-from bbox.bbox_transform import bbox_overlaps, bbox_transform
 from bbox.bbox_regression import expand_bbox_regression_targets
+from bbox.bbox_transform import bbox_overlaps, bbox_transform
+from utils.image import get_image, tensor_vstack
 
 
 def get_rcnn_testbatch(roidb, cfg):
@@ -36,14 +36,14 @@ def get_rcnn_testbatch(roidb, cfg):
     # assert len(roidb) == 1, 'Single batch only'
     imgs, roidb = get_image(roidb, cfg)
     im_array = imgs
-    im_info = [np.array([roidb[i]['im_info']], dtype=np.float32) for i in range(len(roidb))]
+    im_info = [np.array([roidb[i]['im_info']], dtype=np.float32) for i in xrange(len(roidb))]
 
-    im_rois = [roidb[i]['boxes'] for i in range(len(roidb))]
+    im_rois = [roidb[i]['boxes'] for i in xrange(len(roidb))]
     rois = im_rois
-    rois_array = [np.hstack((0 * np.ones((rois[i].shape[0], 1)), rois[i])) for i in range(len(rois))]
+    rois_array = [np.hstack((0 * np.ones((rois[i].shape[0], 1)), rois[i])) for i in xrange(len(rois))]
 
     data = [{'data': im_array[i],
-             'rois': rois_array[i]} for i in range(len(roidb))]
+             'rois': rois_array[i]} for i in xrange(len(roidb))]
     label = {}
 
     return data, label, im_info
@@ -75,7 +75,7 @@ def get_rcnn_batch(roidb, cfg):
     bbox_targets_array = list()
     bbox_weights_array = list()
 
-    for im_i in range(num_images):
+    for im_i in xrange(num_images):
         roi_rec = roidb[im_i]
 
         # infer num_classes from gt_overlaps
@@ -183,4 +183,3 @@ def sample_rois(rois, fg_rois_per_image, rois_per_image, num_classes, cfg,
         expand_bbox_regression_targets(bbox_target_data, num_classes, cfg)
 
     return rois, labels, bbox_targets, bbox_weights
-
